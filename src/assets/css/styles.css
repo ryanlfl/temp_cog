@@ -1,0 +1,26 @@
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+body{
+    background-color: #f6f6ea;
+}
+
+#cog_input_excel{
+    border: black dotted 0.15rem;
+}
+
+#help_button:hover {
+    opacity: 100%;
+}
+
+/* #help_tab{
+    min-height: 410px;
+    box-shadow: 0 16px 24px 2px rgb(0 0 0 / 14%), 0 6px 30px 5px rgb(0 0 0 / 12%), 0 8px 10px -5px rgb(0 0 0 / 20%);
+    padding: 10px 0;
+    width: 100%;
+    border-radius: 6px;
+    color: rgba(0,0,0, 0.87);
+    background: #fff;
+} */
