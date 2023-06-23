@@ -63,6 +63,108 @@ app = dash.Dash(
 server=app.server
 ls = LS(api_key=here_maps_api_key)  
 
+##TEMP##
+import time #To generate the OAuth timestamp
+import urllib.parse #To URLencode the parameter string
+import hmac #To implement HMAC algorithm
+import hashlib #To generate SHA256 digest
+from base64 import b64encode #To encode binary data into Base64
+import binascii #To convert data into ASCII
+import requests #To make HTTP requests
+
+oauth_consumer_key = 'G4eGsCcUkQVmDQaBPB6_cA' #From credentials.properties file
+access_key_secret = 'HPeYYUmNEWg17AbVxWCT7mDMGr4AkaxUttGbAgX8YqfOTv8uWpxHUGS33TWsZc_PnEnXftLXZ4Qm_fmm1tLwOA' #From credentials.properties file
+
+def get_access_token(oauth_consumer_key, access_key_secret):
+
+    grant_type = 'client_credentials'
+    oauth_nonce = str(int(time.time()*1000))
+    oauth_signature_method = 'HMAC-SHA256'
+    oauth_timestamp = str(int(time.time()))
+    oauth_version = '1.0'
+
+    def create_parameter_string(grant_type, oauth_consumer_key,oauth_nonce,oauth_signature_method,oauth_timestamp,oauth_version):
+        parameter_string = ''
+        parameter_string = parameter_string + 'grant_type=' + grant_type
+        parameter_string = parameter_string + '&oauth_consumer_key=' + oauth_consumer_key
+        parameter_string = parameter_string + '&oauth_nonce=' + oauth_nonce
+        parameter_string = parameter_string + '&oauth_signature_method=' + oauth_signature_method
+        parameter_string = parameter_string + '&oauth_timestamp=' + oauth_timestamp
+        parameter_string = parameter_string + '&oauth_version=' + oauth_version
+        return parameter_string
+
+    parameter_string = create_parameter_string(grant_type, oauth_consumer_key,oauth_nonce,oauth_signature_method,oauth_timestamp,oauth_version)
+    encoded_parameter_string = urllib.parse.quote(parameter_string, safe='') #From credentials.properties file
+    oauth_nonce = str(int(time.time()*1000))
+    oauth_signature_method = 'HMAC-SHA256'
+    oauth_timestamp = str(int(time.time()))
+    oauth_version = '1.0'
+
+    def create_parameter_string(grant_type, oauth_consumer_key,oauth_nonce,oauth_signature_method,oauth_timestamp,oauth_version):
+        parameter_string = ''
+        parameter_string = parameter_string + 'grant_type=' + grant_type
+        parameter_string = parameter_string + '&oauth_consumer_key=' + oauth_consumer_key
+        parameter_string = parameter_string + '&oauth_nonce=' + oauth_nonce
+        parameter_string = parameter_string + '&oauth_signature_method=' + oauth_signature_method
+        parameter_string = parameter_string + '&oauth_timestamp=' + oauth_timestamp
+        parameter_string = parameter_string + '&oauth_version=' + oauth_version
+        return parameter_string
+
+    parameter_string = create_parameter_string(grant_type, oauth_consumer_key,oauth_nonce,oauth_signature_method,oauth_timestamp,oauth_version)
+    encoded_parameter_string = urllib.parse.quote(parameter_string, safe='')
+
+    url = 'https://account.api.here.com/oauth2/token'
+    encoded_base_string = 'POST' + '&' + urllib.parse.quote(url, safe='')
+    encoded_base_string = encoded_base_string + '&' + encoded_parameter_string
+
+    signing_key = access_key_secret + '&'
+
+    def create_signature(secret_key, signature_base_string):
+        encoded_string = signature_base_string.encode()
+        encoded_key = secret_key.encode()
+        temp = hmac.new(encoded_key, encoded_string, hashlib.sha256).hexdigest()
+        byte_array = b64encode(binascii.unhexlify(temp))
+        return byte_array.decode()
+
+    oauth_signature = create_signature(signing_key, encoded_base_string)
+    encoded_oauth_signature = urllib.parse.quote(oauth_signature, safe='')
+
+    body = {'grant_type' : '{}'.format(grant_type)}
+
+    headers = {
+        'Content-Type' : 'application/x-www-form-urlencoded',
+        'Authorization' : 'OAuth oauth_consumer_key="{0}",oauth_nonce="{1}",oauth_signature="{2}",oauth_signature_method="HMAC-SHA256",oauth_timestamp="{3}",oauth_version="1.0"'.format(oauth_consumer_key,oauth_nonce,encoded_oauth_signature,oauth_timestamp)
+    }
+        
+    response = requests.post(url, data=body, headers=headers)
+
+    access_token = response.json().get('access_token')
+
+    return access_token
+
+
+def geocode_location2(access_token, location):
+    url = f"https://geocode.search.hereapi.com/v1/geocode?q={location}"
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    response = requests.get(url,headers=headers)
+    data = response.json()
+    print(data)
+    # Extract latitude and longitude from the response
+    if 'items' in data and len(data['items']) > 0:
+        latitude = data['items'][0]['position']['lat']
+        longitude = data['items'][0]['position']['lng']
+        country = None
+        state = None
+        city = None
+        return latitude, longitude, country, state, city
+    
+    return None
+##TEMP##
+
+
 ###############
 ## Functions ##
 ###############
@@ -370,13 +472,13 @@ def generate_cog_analysis(n_clicks:int,cog_input_excel:Union[str,None],filename:
     expected_location_types =  ["Demand","Supply","Candidate",]
     if not ( set(uq_location_type) <= set(expected_location_types)  )  :
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, settings_hash, True, f"Invalid Location Types"
-
+    ak = get_access_token(oauth_consumer_key, access_key_secret)
     # Add geo_lat and geo_lon if Lat and Lon are not availible
     df['is_geo_code'] = df.apply(lambda x: False if (pd.notnull(x['Latitude']) and pd.notnull(x['Longitude'])) else True, axis=1)
-    # df['final_loc'] = df.apply(lambda x: str(geocode_location(x['Location Address'])) if (x['is_geo_code'] == True) else f"({x['Longitude']},{x['Latitude']})", axis=1)
+    # df['final_loc'] = df.apply(lambda x: str(geocode_location2(ak,x['Location Address'])) if (x['is_geo_code'] == True) else f"({x['Longitude']},{x['Latitude']})", axis=1)
     # df['final_lat'] = df.apply(lambda x: x['final_loc'].split(',')[1].replace('(','').replace(')','').strip(), axis=1)
     # df['final_lon'] = df.apply(lambda x: x['final_loc'].split(',')[0].replace('(','').replace(')','').strip(), axis=1)
-    df['final_loc'] = df.apply(lambda x: str(geocode_location(x['Location Address'])), axis=1)
+    df['final_loc'] = df.apply(lambda x: str(geocode_location2(ak,x['Location Address'])), axis=1)
     df['final_lat'] = df.apply(lambda x: x['Latitude'] if not (x['is_geo_code'] == True) else x['final_loc'].split(',')[1].replace('(','').replace(')','').strip(), axis=1)
     df['final_lon'] = df.apply(lambda x: x['Longitude'] if not (x['is_geo_code'] == True) else x['final_loc'].split(',')[0].replace('(','').replace(')','').strip(), axis=1)
     df['final_country'] = df.apply(lambda x: x['final_loc'].split(',')[2].replace('(','').replace(')','').strip(), axis=1)
